@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset=utf-8 />
+<title>Ada sensors with Mapbox</title>
+<meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+<script src='https://api.mapbox.com/mapbox.js/v2.4.0/mapbox.js'></script>
+<link href='https://api.mapbox.com/mapbox.js/v2.4.0/mapbox.css' rel='stylesheet' />
+<style>
+  body { margin:0; padding:0; }
+  #map { position:absolute; top:0; bottom:0; width:100%; }
+</style>
+</head>
+<body> 
+ 
+<style>
+pre.ui-distance {
+  position:absolute;
+  bottom:10px;
+  left:10px;
+  padding:5px 10px;
+  background:rgba(0,0,0,0.5);
+  color:#fff;
+  font-size:11px;
+  line-height:18px;
+  border-radius:3px;
+  }
+</style>
+<div id='map'></div>
+<pre id='distance' class='ui-distance'>Click to place a marker</pre>
+
+<script>
+// Socket.
+	
+	 function sendMessage() {
+              	//var nickname = document.getElementById("inputNick").value;
+                //var msg = document.getElementById("inputText").value;
+                var strToSend = "Ada Sensor"; //msg;
+                if ( websocket != null )
+                {
+                    //document.getElementById("inputText").value = "";
+                    websocket.send( strToSend );
+                    console.log( "string sent :", '"'+strToSend+'"' );
+                    //debug(strToSend);
+                }
+            }
+
+
+  var wsUri = "ws://localhost:1234";
+  var websocket = null;
+  var alarm = false;           
+	function initWebSocket() {
+                try {
+                    if (typeof MozWebSocket == 'function')
+                        WebSocket = MozWebSocket;
+                    if ( websocket && websocket.readyState == 1 )
+                        websocket.close();
+                    websocket = new WebSocket( wsUri );
+                    websocket.onopen = function (evt) {
+                      //  debug("CONNECTED");
+			console.log( "CONNECTED" );
+                    };
+                    websocket.onclose = function (evt) {
+                       // debug("DISCONNECTED");
+			// console.log( "DISCONNECTED" );
+                    };
+                    websocket.onmessage = function (evt) {
+                     if (evt.data == "Hello Client2!")
+			{
+				alarm=true;
+				console.log( alarm );
+				console.log( evt.data );
+
+				 var fixedMarker = L.marker(new L.LatLng(38.9131775, -77.032544), {
+   
+
+   icon: L.mapbox.marker.icon({
+        'marker-color': 'ff0000'
+    })
+}).bindPopup('State: Alarm').addTo(map);
+
+
+			}
+			else {
+				alarm=false;
+				console.log( alarm );
+				console.log( evt.data );
+			}
+
+		
+			   console.log( "Message received :", evt.data );
+                      //  debug( evt.data );
+			console.log( "onmessage" );
+                    };
+                    websocket.onerror = function (evt) {
+                        //debug('ERROR: ' + evt.data);
+			  console.log( "error" );
+                    };
+                } catch (exception) {
+                   // debug('ERROR: ' + exception);
+			 console.log( "error exception" );
+                }
+            }
+
+
+            function stopWebSocket() {
+                if (websocket)
+                    websocket.close();
+            }
+
+
+	   initWebSocket();	
+
+
+L.mapbox.accessToken = 'pk.eyJ1IjoieXVudXNoa2luODgiLCJhIjoiY2luc3AzNXZuMDBqb3dkbHl6c2F0MWZrdSJ9.fGC0nQrnRQ3fsKInPlBohw';
+var map = L.mapbox.map('map', 'mapbox.streets')
+    .setView([38.9, -77], 12);
+
+// Start with a fixed marker.
+
+
+if (alarm == false) {
+ var fixedMarker = L.marker(new L.LatLng(38.9131775, -77.032544), {
+   
+
+   icon: L.mapbox.marker.icon({
+        'marker-color': '00ff00'
+    })
+}).bindPopup('Ada Sensor').addTo(map);
+
+}
+
+
+
+
+
+
+// Store the fixedMarker coordinates in a variable.
+var fc = fixedMarker.getLatLng();
+
+// Create a featureLayer that will hold a marker and linestring.
+var featureLayer = L.mapbox.featureLayer().addTo(map);
+
+// When a user clicks on the map we want to
+// create a new L.featureGroup that will contain a
+// marker placed where the user selected the map and
+// a linestring that draws itself between the fixedMarkers
+// coordinates and the newly placed marker.
+map.on('click', function(ev) {
+  
+    
+    sendMessage();
+    // ev.latlng gives us the coordinates of
+    // the spot clicked on the map.
+    var c = ev.latlng;
+	
+    var geojson = [
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [c.lng, c.lat]
+        },
+        "properties": {
+          "marker-color": "#00ff00"
+        }
+      }, {
+        "type": "Feature",
+        "geometry": {
+          "type": "LineString",
+          "coordinates": [
+            [fc.lng, fc.lat],
+            [c.lng, c.lat]
+          ]
+        },
+        "properties": {
+          "stroke": "#000",
+          "stroke-opacity": 0.5,
+          "stroke-width": 4
+        }
+      }
+    ];
+
+
+
+    featureLayer.setGeoJSON(geojson);
+
+    // Finally, print the distance between these two points
+    // on the screen using distanceTo().
+    var container = document.getElementById('distance');
+    container.innerHTML = (fc.distanceTo(c)).toFixed(0) + 'm';
+    
+});
+</script>
+</body>
+</html>
